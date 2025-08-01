@@ -39,7 +39,9 @@ function getBatchPixelValues( filePath, coordinates ) {
 		const result = execSync( `echo "${ coordString }" | gdallocationinfo -valonly -geoloc "${ filePath }"`, { encoding: "utf8" } )
 
 		return result.trim().split( "\n" ).map( line => {
+
 			const value = parseFloat( line.trim() )
+
 			return isNaN( value ) ? null : value
 		} )
 	}
@@ -47,6 +49,47 @@ function getBatchPixelValues( filePath, coordinates ) {
 
 		return coordinates.map( () => null )
 	}
+}
+
+async function getBatchPixelValuesConcurrent( filePath, coordinates, chunkSize = 2_000, maxConcurrency = 4 ) {
+
+	if ( coordinates.length <= chunkSize ) {
+
+		return getBatchPixelValues( filePath, coordinates )
+	}
+
+	const chunks = []
+
+	for ( let i = 0; i < coordinates.length; i += chunkSize ) {
+
+		chunks.push( coordinates.slice( i, i + chunkSize ) )
+	}
+
+	const results = []
+
+	for ( let i = 0; i < chunks.length; i += maxConcurrency ) {
+
+		const batch = chunks.slice( i, i + maxConcurrency )
+
+		const promises = batch.map( chunk =>
+
+			new Promise( resolve => {
+
+				const result = getBatchPixelValues( filePath, chunk )
+
+				resolve( result )
+			} )
+		)
+
+		const batchResults = await Promise.all( promises )
+
+		for ( const chunkResult of batchResults ) {
+
+			results.push( ...chunkResult )
+		}
+	}
+
+	return results
 }
 
 function getPixelValue( filePath, lon, lat ) {
@@ -165,7 +208,7 @@ app.post( "/profile", async ( req, res ) => {
 		const pixelPoints = bresenhamLine( x1, y1, x2, y2, sampling_interval )
 
 		const coordinates = pixelPoints.map( ( [ pixelX, pixelY ] ) => pixelToLonLat( pixelX, pixelY, geoTransform ) )
-		const elevations = getBatchPixelValues( filePath, coordinates )
+		const elevations = await getBatchPixelValuesConcurrent( filePath, coordinates )
 
 		const profile = []
 		let distance = 0
@@ -198,8 +241,8 @@ app.post( "/profile", async ( req, res ) => {
 				totalDistance: Math.round( distance * 100 ) / 100,
 			}
 		} )
-
-	} catch ( error ) {
+	}
+	catch ( error ) {
 
 		console.error( "Profile generation error:", error )
 		res.status( 500 ).json( { error: "Internal server error" } )
