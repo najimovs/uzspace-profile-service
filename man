@@ -8,3 +8,13 @@ gdal_translate input.tif output_cog.tif \
 	-co BLOCKSIZE=512 \
 	-co COMPRESS=LZW \
 	-co OVERVIEW_RESAMPLING=AVERAGE
+
+
+# Build image
+docker build -t profile-service .
+
+# Run container  
+docker run -p 3000:3000 -v ./data:/app/data profile-service
+
+# Compose
+docker-compose up -d
