@@ -249,6 +249,11 @@ app.post( "/profile", async ( req, res ) => {
 	}
 } )
 
+app.get( "/health", ( req, res ) => {
+
+	res.json( { status: "ok", timestamp: new Date().toISOString() } )
+} )
+
 app.listen( PORT, () => {
 
 	console.log( `Profile service running on port ${ PORT }` )
