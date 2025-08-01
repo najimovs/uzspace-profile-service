@@ -1,0 +1,10 @@
+# get stats
+gdalinfo dem.tif
+
+# convert to COG
+gdal_translate input.tif output_cog.tif \
+	-of COG \
+	-co TILED=YES \
+	-co BLOCKSIZE=512 \
+	-co COMPRESS=LZW \
+	-co OVERVIEW_RESAMPLING=AVERAGE
