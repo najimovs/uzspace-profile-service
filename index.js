@@ -37,7 +37,7 @@ function getBatchPixelValues( filePath, coordinates ) {
 
 		const coordString = coordinates.map( ( [ lon, lat ] ) => `${ lon } ${ lat }` ).join( "\n" )
 		const result = execSync( `echo "${ coordString }" | gdallocationinfo -valonly -geoloc "${ filePath }"`, { encoding: "utf8" } )
-		
+
 		return result.trim().split( "\n" ).map( line => {
 			const value = parseFloat( line.trim() )
 			return isNaN( value ) ? null : value
@@ -117,6 +117,23 @@ function pixelToLonLat( pixelX, pixelY, geoTransform ) {
 	return [ lon, lat ]
 }
 
+function haversineDistance( lon1, lat1, lon2, lat2 ) {
+
+	const R = 6_371_000
+	const dLat = ( lat2 - lat1 ) * Math.PI / 180
+	const dLon = ( lon2 - lon1 ) * Math.PI / 180
+	const lat1Rad = lat1 * Math.PI / 180
+	const lat2Rad = lat2 * Math.PI / 180
+
+	const a = Math.sin( dLat / 2 ) * Math.sin( dLat / 2 ) +
+		Math.cos( lat1Rad ) * Math.cos( lat2Rad ) *
+		Math.sin( dLon / 2 ) * Math.sin( dLon / 2 )
+
+	const c = 2 * Math.atan2( Math.sqrt( a ), Math.sqrt( 1 - a ) )
+
+	return R * c
+}
+
 app.post( "/profile", async ( req, res ) => {
 
 	try {
@@ -133,7 +150,8 @@ app.post( "/profile", async ( req, res ) => {
 		try {
 
 			await fs.access( filePath )
-		} catch {
+		}
+		catch {
 
 			return res.status( 404 ).json( { error: "TIFF file not found" } )
 		}
@@ -160,9 +178,7 @@ app.post( "/profile", async ( req, res ) => {
 
 			if ( profile.length > 0 ) {
 
-				const deltaLon = lon - prevLonLat[ 0 ]
-				const deltaLat = lat - prevLonLat[ 1 ]
-				distance += Math.sqrt( deltaLon * deltaLon + deltaLat * deltaLat ) * 111_320
+				distance += haversineDistance( prevLonLat[ 0 ], prevLonLat[ 1 ], lon, lat )
 			}
 
 			profile.push( {
