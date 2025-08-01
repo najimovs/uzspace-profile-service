@@ -234,12 +234,12 @@ app.post( "/profile", async ( req, res ) => {
 		}
 
 		res.json( {
-			profile,
 			metadata: {
 				totalPoints: profile.length,
 				samplingInterval: sampling_interval,
 				totalDistance: Math.round( distance * 100 ) / 100,
-			}
+			},
+			profile,
 		} )
 	}
 	catch ( error ) {
