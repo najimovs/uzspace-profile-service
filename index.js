@@ -113,14 +113,14 @@ app.post( "/profile", async ( req, res ) => {
 
 	try {
 
-		const { points, sampling_interval = 1, tiff_file = "data/1.tif" } = req.body
+		const { a, b, sampling_interval = 1, file_path = "data/1.tif" } = req.body
 
-		if ( !points || points.length !== 2 ) {
+		if ( !a || !b || a.length !== 2 || b.length !== 2 ) {
 
-			return res.status( 400 ).json( { error: "Two points required: [[lon1, lat1], [lon2, lat2]]" } )
+			return res.status( 400 ).json( { error: "Two points required: a: [lon, lat], b: [lon, lat]" } )
 		}
 
-		const filePath = path.resolve( tiff_file )
+		const filePath = path.resolve( file_path )
 
 		try {
 
@@ -133,15 +133,14 @@ app.post( "/profile", async ( req, res ) => {
 		const metadata = getGeoTiffMetadata( filePath )
 		const geoTransform = metadata.geoTransform
 
-		const [ point1, point2 ] = points
-		const [ x1, y1 ] = lonLatToPixel( point1[ 0 ], point1[ 1 ], geoTransform )
-		const [ x2, y2 ] = lonLatToPixel( point2[ 0 ], point2[ 1 ], geoTransform )
+		const [ x1, y1 ] = lonLatToPixel( a[ 0 ], a[ 1 ], geoTransform )
+		const [ x2, y2 ] = lonLatToPixel( b[ 0 ], b[ 1 ], geoTransform )
 
 		const pixelPoints = bresenhamLine( x1, y1, x2, y2, sampling_interval )
 
 		const profile = []
 		let distance = 0
-		let prevLonLat = point1
+		let prevLonLat = a
 
 		for ( const [ pixelX, pixelY ] of pixelPoints ) {
 
