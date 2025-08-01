@@ -31,19 +31,27 @@ function getGeoTiffMetadata( filePath ) {
 	}
 }
 
-function getPixelValue( filePath, lon, lat ) {
+function getBatchPixelValues( filePath, coordinates ) {
 
 	try {
 
-		const result = execSync( `gdallocationinfo -valonly -geoloc "${ filePath }" ${ lon } ${ lat }`, { encoding: "utf8" } )
-		const value = parseFloat( result.trim() )
-
-		return isNaN(value) ? null : value
+		const coordString = coordinates.map( ( [ lon, lat ] ) => `${ lon } ${ lat }` ).join( "\n" )
+		const result = execSync( `echo "${ coordString }" | gdallocationinfo -valonly -geoloc "${ filePath }"`, { encoding: "utf8" } )
+		
+		return result.trim().split( "\n" ).map( line => {
+			const value = parseFloat( line.trim() )
+			return isNaN( value ) ? null : value
+		} )
 	}
 	catch ( error ) {
 
-		return null
+		return coordinates.map( () => null )
 	}
+}
+
+function getPixelValue( filePath, lon, lat ) {
+
+	return getBatchPixelValues( filePath, [ [ lon, lat ] ] )[ 0 ]
 }
 
 function bresenhamLine( x0, y0, x1, y1, samplingInterval = 1 ) {
@@ -138,14 +146,17 @@ app.post( "/profile", async ( req, res ) => {
 
 		const pixelPoints = bresenhamLine( x1, y1, x2, y2, sampling_interval )
 
+		const coordinates = pixelPoints.map( ( [ pixelX, pixelY ] ) => pixelToLonLat( pixelX, pixelY, geoTransform ) )
+		const elevations = getBatchPixelValues( filePath, coordinates )
+
 		const profile = []
 		let distance = 0
 		let prevLonLat = a
 
-		for ( const [ pixelX, pixelY ] of pixelPoints ) {
+		for ( let i = 0; i < coordinates.length; i++ ) {
 
-			const [ lon, lat ] = pixelToLonLat( pixelX, pixelY, geoTransform )
-			const elevation = getPixelValue( filePath, lon, lat )
+			const [ lon, lat ] = coordinates[ i ]
+			const elevation = elevations[ i ]
 
 			if ( profile.length > 0 ) {
 
