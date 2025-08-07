@@ -2,11 +2,13 @@ import express from "express"
 import { execSync } from "child_process"
 import { promises as fs } from "fs"
 import path from "path"
+import cors from "cors"
 
 const app = express()
 const PORT = process.env.PORT || 3_000
 
 app.use( express.json() )
+app.use( cors() )
 
 const metadataCache = new Map()
 
